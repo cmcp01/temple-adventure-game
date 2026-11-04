@@ -89,6 +89,92 @@ body {
 	text-align: center;
 	z-index: 1;
 }
+/* ===== 手机横屏适配层（新增，不影响桌面端）===== */
+html, body {
+	width: 100%;
+	height: 100%;
+	height: 100dvh;
+}
+
+#canvas {
+	width: 100%;
+	height: 100%;
+	display: block;
+}
+
+#rotate-overlay {
+	display: none;
+	position: fixed;
+	inset: 0;
+	z-index: 9999;
+	background: #0d0d10;
+	color: #f0e6d2;
+	flex-direction: column;
+	justify-content: center;
+	align-items: center;
+	gap: 18px;
+	font-family: 'Noto Sans SC', 'Microsoft YaHei', 'PingFang SC', 'Hiragino Sans GB', Arial, sans-serif;
+	text-align: center;
+	padding: 24px;
+	box-sizing: border-box;
+	-webkit-user-select: none;
+	user-select: none;
+}
+
+#rotate-overlay.show {
+	display: flex;
+}
+
+#rotate-overlay .rot-icon {
+	width: 86px;
+	height: 86px;
+	border: 3px solid #c8a86a;
+	border-radius: 14px;
+	transform: rotate(-90deg);
+	animation: rot-hint 2.2s ease-in-out infinite;
+}
+
+@keyframes rot-hint {
+	0%, 45% { transform: rotate(-90deg); }
+	55%, 100% { transform: rotate(0deg); }
+}
+
+#rotate-overlay h2 {
+	margin: 0;
+	font-size: 22px;
+	font-weight: 600;
+	letter-spacing: 1px;
+}
+
+#rotate-overlay p {
+	margin: 0;
+	font-size: 15px;
+	line-height: 1.6;
+	color: #b9ae99;
+}
+
+#enter-game {
+	display: none;
+	position: fixed;
+	bottom: 12px;
+	left: 50%;
+	transform: translateX(-50%);
+	z-index: 9998;
+	padding: 10px 22px;
+	border-radius: 999px;
+	border: 1px solid rgba(200, 168, 106, 0.7);
+	background: rgba(20, 18, 16, 0.82);
+	color: #f0e6d2;
+	font-family: 'Noto Sans SC', 'Microsoft YaHei', 'PingFang SC', Arial, sans-serif;
+	font-size: 15px;
+	letter-spacing: 1px;
+	cursor: pointer;
+	-webkit-tap-highlight-color: transparent;
+}
+
+#enter-game.show {
+	display: block;
+}
 		</style>
 		<link id="-gd-engine-icon" rel="icon" type="image/png" href="index.icon.png" />
 <link rel="apple-touch-icon" href="index.apple-touch-icon.png"/>
@@ -109,9 +195,17 @@ body {
 			<div id="status-notice"></div>
 		</div>
 
+<!-- 手机横屏提示层（新增） -->
+		<div id="rotate-overlay" role="alertdialog" aria-live="assertive">
+			<div class="rot-icon"></div>
+			<h2>请将手机横过来</h2>
+			<p>使用横屏模式游玩。</p>
+		</div>
+		<button id="enter-game" type="button">进入游戏 · 全屏</button>
+
 		<script src="index.js"></script>
 		<script>
-const GODOT_CONFIG = {"args":[],"canvasResizePolicy":2,"emscriptenPoolSize":8,"ensureCrossOriginIsolationHeaders":true,"executable":"index","experimentalVK":false,"fileSizes":{"index.pck":93624536,"index.wasm":39514754},"focusCanvas":true,"gdextensionLibs":[],"godotPoolSize":4};
+const GODOT_CONFIG = {"args":[],"canvasResizePolicy":2,"emscriptenPoolSize":8,"ensureCrossOriginIsolationHeaders":true,"executable":"index","experimentalVK":false,"fileSizes":{"index.pck":34904360,"index.wasm":39514754},"focusCanvas":true,"gdextensionLibs":[],"godotPoolSize":4};
 const GODOT_THREADS_ENABLED = false;
 const engine = new Engine(GODOT_CONFIG);
 
@@ -214,6 +308,112 @@ const engine = new Engine(GODOT_CONFIG);
 		}, displayFailureNotice);
 	}
 }());
+		</script>
+<!-- 手机横屏适配脚本（新增，仅作用于触屏设备） -->
+		<script>
+		(function () {
+			'use strict';
+
+			var overlay = document.getElementById('rotate-overlay');
+			var enterBtn = document.getElementById('enter-game');
+			if (!overlay || !enterBtn) { return; }
+
+			// 触屏设备判定：桌面端永远不会进入该分支
+			var COARSE = window.matchMedia('(hover: none) and (pointer: coarse)');
+			var isTouch = function () {
+				return (navigator.maxTouchPoints || 0) > 0
+					|| 'ontouchstart' in window
+					|| COARSE.matches;
+			};
+			var isPortrait = function () {
+				if (window.matchMedia('(orientation: portrait)').matches) { return true; }
+				return window.innerHeight > window.innerWidth;
+			};
+			var isSmallScreen = function () {
+				return Math.min(window.screen.width, window.screen.height) <= 1024;
+			};
+
+			var dismissed = false;
+			var isMobile = false;
+
+			function update() {
+				isMobile = isTouch() && isSmallScreen();
+				var needRotate = isMobile && isPortrait();
+				overlay.classList.toggle('show', needRotate);
+
+				// 横屏且未进入过全屏时，显示"进入游戏"按钮（10 秒后自动隐藏，避免遮挡）
+				var showBtn = isMobile && !isPortrait() && !dismissed;
+				enterBtn.classList.toggle('show', showBtn);
+			}
+
+			function enterGame() {
+				dismissed = true;
+				enterBtn.classList.remove('show');
+
+				// 1) 请求全屏（各浏览器前缀）
+				var el = document.documentElement;
+				try {
+					var req = el.requestFullscreen || el.webkitRequestFullscreen
+						|| el.webkitRequestFullScreen || el.mozRequestFullScreen
+						|| el.msRequestFullscreen;
+					if (req) {
+						var p = req.call(el, { navigationUI: 'hide' });
+						if (p && p.catch) { p.catch(function () {}); }
+					}
+				} catch (e) { /* 浏览器拒绝全屏，忽略 */ }
+
+				// 2) 尝试锁定横屏（仅安卓 Chrome 等支持；iOS Safari 不支持，必须容错）
+				try {
+					var so = screen.orientation;
+					if (so && typeof so.lock === 'function') {
+						var lp = so.lock('landscape');
+						if (lp && lp.catch) { lp.catch(function () {}); }
+					} else if (screen.lockOrientation) {
+						screen.lockOrientation('landscape');
+					}
+				} catch (e) { /* 不支持横屏锁定时，用户手动旋转即可 */ }
+
+				// 3) 通知 Godot 画布重新计算尺寸（部分浏览器全屏后不触发 resize）
+				setTimeout(function () {
+					window.dispatchEvent(new Event('resize'));
+				}, 300);
+			}
+
+			enterBtn.addEventListener('click', enterGame);
+			enterBtn.addEventListener('touchstart', function (ev) { ev.preventDefault(); enterGame(); }, { passive: false });
+
+			var raf = null;
+			function schedule() {
+				if (raf) { return; }
+				raf = setTimeout(function () { raf = null; update(); }, 60);
+			}
+			window.addEventListener('orientationchange', schedule);
+			window.addEventListener('resize', schedule);
+			if (window.matchMedia('(orientation: portrait)').addEventListener) {
+				window.matchMedia('(orientation: portrait)').addEventListener('change', schedule);
+			}
+
+			var hideTimer = null;
+			function scheduleHide() {
+				if (hideTimer) { clearTimeout(hideTimer); }
+				hideTimer = setTimeout(function () {
+					dismissed = true;
+					enterBtn.classList.remove('show');
+				}, 12000);
+			}
+
+			// 按钮每次显示时开始 12 秒倒计时
+			var lastShown = false;
+			var origUpdate = update;
+			update = function () {
+				origUpdate();
+				var now = enterBtn.classList.contains('show');
+				if (now && !lastShown) { scheduleHide(); }
+				lastShown = now;
+			};
+
+			update();
+		}());
 		</script>
 	</body>
 </html>
