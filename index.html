@@ -1,420 +1,126 @@
 <!DOCTYPE html>
-<html lang="en">
-	<head>
-		<meta charset="utf-8">
-		<meta name="viewport" content="width=device-width, user-scalable=no, initial-scale=1.0">
-		<title>MY FIRST  GAME</title>
-		<style>
-html, body, #canvas {
-	margin: 0;
-	padding: 0;
-	border: 0;
-}
-
-body {
-	color: white;
-	background-color: black;
-	overflow: hidden;
-	touch-action: none;
-}
-
-#canvas {
-	display: block;
-}
-
-#canvas:focus {
-	outline: none;
-}
-
-#status, #status-splash, #status-progress {
-	position: absolute;
-	left: 0;
-	right: 0;
-}
-
-#status, #status-splash {
-	top: 0;
-	bottom: 0;
-}
-
-#status {
-	background-color: #242424;
-	display: flex;
-	flex-direction: column;
-	justify-content: center;
-	align-items: center;
-	visibility: hidden;
-}
-
-#status-splash {
-	max-height: 100%;
-	max-width: 100%;
-	margin: auto;
-}
-
-#status-splash.show-image--false {
-	display: none;
-}
-
-#status-splash.fullsize--true {
-	height: 100%;
-	width: 100%;
-	object-fit: contain;
-}
-
-#status-splash.use-filter--false {
-	image-rendering: pixelated;
-}
-
-#status-progress, #status-notice {
-	display: none;
-}
-
-#status-progress {
-	bottom: 10%;
-	width: 50%;
-	margin: 0 auto;
-}
-
-#status-notice {
-	background-color: #5b3943;
-	border-radius: 0.5rem;
-	border: 1px solid #9b3943;
-	color: #e0e0e0;
-	font-family: 'Noto Sans', 'Droid Sans', Arial, sans-serif;
-	line-height: 1.3;
-	margin: 0 2rem;
-	overflow: hidden;
-	padding: 1rem;
-	text-align: center;
-	z-index: 1;
-}
-/* ===== 手机横屏适配层（新增，不影响桌面端）===== */
-html, body {
-	width: 100%;
-	height: 100%;
-	height: 100dvh;
-}
-
-#canvas {
-	width: 100%;
-	height: 100%;
-	display: block;
-}
-
-#rotate-overlay {
-	display: none;
-	position: fixed;
-	inset: 0;
-	z-index: 9999;
-	background: #0d0d10;
-	color: #f0e6d2;
-	flex-direction: column;
-	justify-content: center;
-	align-items: center;
-	gap: 18px;
-	font-family: 'Noto Sans SC', 'Microsoft YaHei', 'PingFang SC', 'Hiragino Sans GB', Arial, sans-serif;
-	text-align: center;
-	padding: 24px;
-	box-sizing: border-box;
-	-webkit-user-select: none;
-	user-select: none;
-}
-
-#rotate-overlay.show {
-	display: flex;
-}
-
-#rotate-overlay .rot-icon {
-	width: 86px;
-	height: 86px;
-	border: 3px solid #c8a86a;
-	border-radius: 14px;
-	transform: rotate(-90deg);
-	animation: rot-hint 2.2s ease-in-out infinite;
-}
-
-@keyframes rot-hint {
-	0%, 45% { transform: rotate(-90deg); }
-	55%, 100% { transform: rotate(0deg); }
-}
-
-#rotate-overlay h2 {
-	margin: 0;
-	font-size: 22px;
-	font-weight: 600;
-	letter-spacing: 1px;
-}
-
-#rotate-overlay p {
-	margin: 0;
-	font-size: 15px;
-	line-height: 1.6;
-	color: #b9ae99;
-}
-
-#enter-game {
-	display: none;
-	position: fixed;
-	bottom: 12px;
-	left: 50%;
-	transform: translateX(-50%);
-	z-index: 9998;
-	padding: 10px 22px;
-	border-radius: 999px;
-	border: 1px solid rgba(200, 168, 106, 0.7);
-	background: rgba(20, 18, 16, 0.82);
-	color: #f0e6d2;
-	font-family: 'Noto Sans SC', 'Microsoft YaHei', 'PingFang SC', Arial, sans-serif;
-	font-size: 15px;
-	letter-spacing: 1px;
-	cursor: pointer;
-	-webkit-tap-highlight-color: transparent;
-}
-
-#enter-game.show {
-	display: block;
-}
-		</style>
-		<link id="-gd-engine-icon" rel="icon" type="image/png" href="index.icon.png" />
-<link rel="apple-touch-icon" href="index.apple-touch-icon.png"/>
-
-	</head>
-	<body>
-		<canvas id="canvas">
-			Your browser does not support the canvas tag.
-		</canvas>
-
-		<noscript>
-			Your browser does not support JavaScript.
-		</noscript>
-
-		<div id="status">
-			<img id="status-splash" class="show-image--true fullsize--true use-filter--true" src="index.png" alt="">
-			<progress id="status-progress"></progress>
-			<div id="status-notice"></div>
-		</div>
-
-<!-- 手机横屏提示层（新增） -->
-		<div id="rotate-overlay" role="alertdialog" aria-live="assertive">
-			<div class="rot-icon"></div>
-			<h2>请将手机横过来</h2>
-			<p>使用横屏模式游玩。</p>
-		</div>
-		<button id="enter-game" type="button">进入游戏 · 全屏</button>
-
-		<script src="index.js"></script>
-		<script>
-const GODOT_CONFIG = {"args":[],"canvasResizePolicy":2,"emscriptenPoolSize":8,"ensureCrossOriginIsolationHeaders":true,"executable":"index","experimentalVK":false,"fileSizes":{"index.pck":34904360,"index.wasm":39514754},"focusCanvas":true,"gdextensionLibs":[],"godotPoolSize":4};
-const GODOT_THREADS_ENABLED = false;
-const engine = new Engine(GODOT_CONFIG);
-
-(function () {
-	const statusOverlay = document.getElementById('status');
-	const statusProgress = document.getElementById('status-progress');
-	const statusNotice = document.getElementById('status-notice');
-
-	let initializing = true;
-	let statusMode = '';
-
-	function setStatusMode(mode) {
-		if (statusMode === mode || !initializing) {
-			return;
-		}
-		if (mode === 'hidden') {
-			statusOverlay.remove();
-			initializing = false;
-			return;
-		}
-		statusOverlay.style.visibility = 'visible';
-		statusProgress.style.display = mode === 'progress' ? 'block' : 'none';
-		statusNotice.style.display = mode === 'notice' ? 'block' : 'none';
-		statusMode = mode;
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>MY FIRST  GAME</title>
+<style>
+	html, body {
+		margin: 0;
+		padding: 0;
+		border: 0;
+		width: 100%;
+		height: 100%;
+		overflow: hidden;
+		background: #000;
+		touch-action: none;
+		-webkit-user-select: none;
+		user-select: none;
+		-webkit-tap-highlight-color: transparent;
 	}
 
-	function setStatusNotice(text) {
-		while (statusNotice.lastChild) {
-			statusNotice.removeChild(statusNotice.lastChild);
-		}
-		const lines = text.split('\n');
-		lines.forEach((line) => {
-			statusNotice.appendChild(document.createTextNode(line));
-			statusNotice.appendChild(document.createElement('br'));
-		});
+	/* 游戏舞台：桌面 = 铺满窗口；手机竖屏 = 以横屏尺寸布局后整体旋转 90° */
+	#stage {
+		position: fixed;
+		top: 0;
+		left: 0;
+		width: 100%;
+		height: 100%;
+		transform-origin: 0 0;
+		background: #000;
+		overflow: hidden;
 	}
 
-	function displayFailureNotice(err) {
-		console.error(err);
-		if (err instanceof Error) {
-			setStatusNotice(err.message);
-		} else if (typeof err === 'string') {
-			setStatusNotice(err);
-		} else {
-			setStatusNotice('An unknown error occurred.');
-		}
-		setStatusMode('notice');
-		initializing = false;
+	#game {
+		display: block;
+		width: 100%;
+		height: 100%;
+		border: 0;
+		background: #000;
 	}
+</style>
+</head>
+<body>
+	<div id="stage">
+		<iframe id="game" src="game.html" allow="fullscreen; autoplay; gamepad"
+			allowfullscreen frameborder="0" scrolling="no"></iframe>
+	</div>
 
-	const missing = Engine.getMissingFeatures({
-		threads: GODOT_THREADS_ENABLED,
-	});
+	<script>
+	(function () {
+		'use strict';
 
-	if (missing.length !== 0) {
-		if (GODOT_CONFIG['serviceWorker'] && GODOT_CONFIG['ensureCrossOriginIsolationHeaders'] && 'serviceWorker' in navigator) {
-			let serviceWorkerRegistrationPromise;
-			try {
-				serviceWorkerRegistrationPromise = navigator.serviceWorker.getRegistration();
-			} catch (err) {
-				serviceWorkerRegistrationPromise = Promise.reject(new Error('Service worker registration failed.'));
-			}
-			// There's a chance that installing the service worker would fix the issue
-			Promise.race([
-				serviceWorkerRegistrationPromise.then((registration) => {
-					if (registration != null) {
-						return Promise.reject(new Error('Service worker already exists.'));
-					}
-					return registration;
-				}).then(() => engine.installServiceWorker()),
-				// For some reason, `getRegistration()` can stall
-				new Promise((resolve) => {
-					setTimeout(() => resolve(), 2000);
-				}),
-			]).then(() => {
-				// Reload if there was no error.
-				window.location.reload();
-			}).catch((err) => {
-				console.error('Error while registering service worker:', err);
-			});
-		} else {
-			// Display the message as usual
-			const missingMsg = 'Error\nThe following features required to run Godot projects on the Web are missing:\n';
-			displayFailureNotice(missingMsg + missing.join('\n'));
+		var stage = document.getElementById('stage');
+		var frame = document.getElementById('game');
+
+		function isTouchDevice() {
+			return (navigator.maxTouchPoints || 0) > 0
+				|| 'ontouchstart' in window
+				|| (window.matchMedia && window.matchMedia('(hover: none) and (pointer: coarse)').matches);
 		}
-	} else {
-		setStatusMode('progress');
-		engine.startGame({
-			'onProgress': function (current, total) {
-				if (current > 0 && total > 0) {
-					statusProgress.value = current;
-					statusProgress.max = total;
-				} else {
-					statusProgress.removeAttribute('value');
-					statusProgress.removeAttribute('max');
-				}
-			},
-		}).then(() => {
-			setStatusMode('hidden');
-		}, displayFailureNotice);
-	}
-}());
-		</script>
-<!-- 手机横屏适配脚本（新增，仅作用于触屏设备） -->
-		<script>
-		(function () {
-			'use strict';
 
-			var overlay = document.getElementById('rotate-overlay');
-			var enterBtn = document.getElementById('enter-game');
-			if (!overlay || !enterBtn) { return; }
-
-			// 触屏设备判定：桌面端永远不会进入该分支
-			var COARSE = window.matchMedia('(hover: none) and (pointer: coarse)');
-			var isTouch = function () {
-				return (navigator.maxTouchPoints || 0) > 0
-					|| 'ontouchstart' in window
-					|| COARSE.matches;
-			};
-			var isPortrait = function () {
-				if (window.matchMedia('(orientation: portrait)').matches) { return true; }
-				return window.innerHeight > window.innerWidth;
-			};
-			var isSmallScreen = function () {
-				return Math.min(window.screen.width, window.screen.height) <= 1024;
-			};
-
-			var dismissed = false;
-			var isMobile = false;
-
-			function update() {
-				isMobile = isTouch() && isSmallScreen();
-				var needRotate = isMobile && isPortrait();
-				overlay.classList.toggle('show', needRotate);
-
-				// 横屏且未进入过全屏时，显示"进入游戏"按钮（10 秒后自动隐藏，避免遮挡）
-				var showBtn = isMobile && !isPortrait() && !dismissed;
-				enterBtn.classList.toggle('show', showBtn);
+		function screenSize() {
+			var vv = window.visualViewport;
+			var w = (vv && vv.width) ? vv.width : 0;
+			var h = (vv && vv.height) ? vv.height : 0;
+			if (!w || !h) {
+				w = window.innerWidth || document.documentElement.clientWidth || 0;
+				h = window.innerHeight || document.documentElement.clientHeight || 0;
 			}
+			return { w: w, h: h };
+		}
 
-			function enterGame() {
-				dismissed = true;
-				enterBtn.classList.remove('show');
+		var rotated = false;
 
-				// 1) 请求全屏（各浏览器前缀）
-				var el = document.documentElement;
-				try {
-					var req = el.requestFullscreen || el.webkitRequestFullscreen
-						|| el.webkitRequestFullScreen || el.mozRequestFullScreen
-						|| el.msRequestFullscreen;
-					if (req) {
-						var p = req.call(el, { navigationUI: 'hide' });
-						if (p && p.catch) { p.catch(function () {}); }
-					}
-				} catch (e) { /* 浏览器拒绝全屏，忽略 */ }
+		function layout() {
+			var s = screenSize();
+			if (!s.w || !s.h) { return; }
 
-				// 2) 尝试锁定横屏（仅安卓 Chrome 等支持；iOS Safari 不支持，必须容错）
-				try {
-					var so = screen.orientation;
-					if (so && typeof so.lock === 'function') {
-						var lp = so.lock('landscape');
-						if (lp && lp.catch) { lp.catch(function () {}); }
-					} else if (screen.lockOrientation) {
-						screen.lockOrientation('landscape');
-					}
-				} catch (e) { /* 不支持横屏锁定时，用户手动旋转即可 */ }
+			// 手机竖屏握持时：舞台按横屏尺寸（高×宽）布局，再顺时针旋转 90° 铺满竖屏
+			var wantRotate = isTouchDevice() && s.h > s.w + 1;
 
-				// 3) 通知 Godot 画布重新计算尺寸（部分浏览器全屏后不触发 resize）
-				setTimeout(function () {
-					window.dispatchEvent(new Event('resize'));
-				}, 300);
+			if (wantRotate) {
+				stage.style.width = s.h + 'px';
+				stage.style.height = s.w + 'px';
+				stage.style.transform = 'translate(' + s.w + 'px, 0px) rotate(90deg)';
+				rotated = true;
+			} else {
+				stage.style.width = s.w + 'px';
+				stage.style.height = s.h + 'px';
+				stage.style.transform = 'none';
+				rotated = false;
 			}
+		}
 
-			enterBtn.addEventListener('click', enterGame);
-			enterBtn.addEventListener('touchstart', function (ev) { ev.preventDefault(); enterGame(); }, { passive: false });
+		var pending = null;
+		function schedule() {
+			if (pending) { return; }
+			pending = setTimeout(function () { pending = null; layout(); }, 60);
+		}
 
-			var raf = null;
-			function schedule() {
-				if (raf) { return; }
-				raf = setTimeout(function () { raf = null; update(); }, 60);
-			}
-			window.addEventListener('orientationchange', schedule);
-			window.addEventListener('resize', schedule);
-			if (window.matchMedia('(orientation: portrait)').addEventListener) {
-				window.matchMedia('(orientation: portrait)').addEventListener('change', schedule);
-			}
+		window.addEventListener('resize', schedule);
+		window.addEventListener('orientationchange', schedule);
+		window.addEventListener('pageshow', schedule);
+		document.addEventListener('visibilitychange', schedule);
+		if (window.visualViewport && window.visualViewport.addEventListener) {
+			window.visualViewport.addEventListener('resize', schedule);
+			window.visualViewport.addEventListener('scroll', schedule);
+		}
+		// 微信 WebView 可能不派发事件，低频兜底（无事件时也能纠正布局）
+		setInterval(function () {
+			if (document.visibilityState === 'visible') { layout(); }
+		}, 800);
 
-			var hideTimer = null;
-			function scheduleHide() {
-				if (hideTimer) { clearTimeout(hideTimer); }
-				hideTimer = setTimeout(function () {
-					dismissed = true;
-					enterBtn.classList.remove('show');
-				}, 12000);
-			}
+		// 把焦点交给内嵌游戏，保证电脑端键盘与手机触摸都能直接作用到游戏
+		function focusGame() {
+			try { frame.focus(); } catch (e) { /* ignore */ }
+		}
+		window.addEventListener('pointerdown', focusGame, true);
+		window.addEventListener('touchstart', focusGame, true);
+		frame.addEventListener('load', focusGame);
 
-			// 按钮每次显示时开始 12 秒倒计时
-			var lastShown = false;
-			var origUpdate = update;
-			update = function () {
-				origUpdate();
-				var now = enterBtn.classList.contains('show');
-				if (now && !lastShown) { scheduleHide(); }
-				lastShown = now;
-			};
-
-			update();
-		}());
-		</script>
-	</body>
+		layout();
+	}());
+	</script>
+</body>
 </html>
-
